@@ -32,5 +32,5 @@ app.delete('/book/:id',(req,res)=>{db.run('DELETE FROM books WHERE id = ?',req.p
         if(err){res.status(500).send(err);}else {res.send({});
     }});});
 
-const port=process.env.PORT ||3000;
+const port=process.env.PORT || 3000;
 app.listen(port,()=>console.log(`Listening on port ${port}...`));
