@@ -1,77 +1,94 @@
-const express = require('express')
-const sqlite3 = require('sqlite3')
+const express = require('express');
+const Sequelize = require('sequelize');
 const app = express();
-
-
-const db = new sqlite3.Database('./Database/Book.sqlite');
 
 app.use(express.json());
 
-db.run(`CREATE TABLE IF NOT EXISTS books (
-    id INTEGER PRIMARY KEY ,
-    title TEXT,
-    author TEXT
-)`);
+const sequelize = new Sequelize('database', 'username', 'password', {
+  host: 'localhost',
+  dialect: 'sqlite',
+  storage: './Database/SQBooks.sqlite',
+});
+
+const Book = sequelize.define('book', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  title: {
+    type: Sequelize.STRING,
+    allowNull: false, // แก้จาก allowNUll เป็น allowNull
+  },
+  author: {
+    type: Sequelize.STRING,
+    allowNull: false, // แก้จาก allowNUll เป็น allowNull
+  },
+});
+
+sequelize.sync();
 
 app.get('/books', (req, res) => {
-    db.all('SELECT * FROM books', (err, rows) => {
-        if (err) {
-            res.status(500).send(err);
-        }else {
-            res.json(rows);
-        }
+  Book.findAll()
+    .then((books) => {
+      res.json(books);
+    })
+    .catch((err) => {
+      res.status(500).send(err);
     });
-}); 
+});
 
-
-app.get('/books/:id', (req, res) => {   
-    db.get('SELECT * FROM books WHERE id = ?', req.params.id, (err, row) => {
-        if (err) {
-            res.status(500).send(err);
-        } else {
-            if (!row) {
-                res.status(404).send('Book Not found');
-            } else {
-                res.json(row);
-            }
-        }
+app.get('/books/:id', (req, res) => {
+  Book.findByPk(req.params.id)
+    .then((book) => {
+      if (!book) {
+        res.status(404).send('Book not found');
+      } else {
+        res.json(book);
+      }
+    })
+    .catch((err) => {
+      res.status(500).send(err);
     });
 });
 
 app.post('/books', (req, res) => {
-    const book = req.body;
-    db.run('INSERT INTO books (title, author) VALUES (?, ?)', book.title, book.author, function (err) {
-        if (err) {
-            res.status(500).send(err);
-        } else {
-            book.id = this.lastID;
-            res.send(book);
-        }
+  Book.create(req.body)
+    .then((book) => {
+      res.send(book);
+    })
+    .catch((err) => {
+      res.status(500).send(err);
     });
 });
 
-
-app.put('/books/:id', (req, res) => {
-    const book = req.body;
-    db.run('UPDATE books SET title = ?, author = ? WHERE id = ?', book.title, book.author, req.params.id, function (err) {
-        if (err) {
-            res.status(500).send(err);
-        } else {
-            res.send(book);
-        }
-    });
+app.put('/books/:id', async (req, res) => { // เพิ่ม async และ await ในการใช้งาน
+  try {
+    const book = await Book.findByPk(req.params.id);
+    if (!book) {
+      res.status(404).send('Book not found');
+    } else {
+      await book.update(req.body);
+      res.send(book);
+    }
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
-
-app.delete('/books/:id', (req, res) => {
-    db.run('DELETE FROM books WHERE id = ?', req.params.id, function (err) {
-        if (err) {
-            res.status(500).send(err);
-        } else {
-            res.send({});
-        }
-    });
+app.delete('/books/:id', async (req, res) => { // เพิ่ม async และ await ในการใช้งาน
+  try {
+    const book = await Book.findByPk(req.params.id);
+    if (!book) {
+      res.status(404).send('Book not found');
+    } else {
+      await book.destroy();
+      res.send({});
+    }
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server is running on port ${port}...`));
+app.listen(port, () => console.log(`Listening on port ${port}...`));
